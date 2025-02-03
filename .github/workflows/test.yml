@@ -1,0 +1,29 @@
+name: Cargo test & clippy
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "backend/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "backend/**"
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  task:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose --all-features
+
+      - name: Run clippy
+        run: cargo clippy --all-features
