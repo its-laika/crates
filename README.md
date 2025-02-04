@@ -1,22 +1,30 @@
-# shotgun
+# Laika's namespace crate 
+
+**This is a namespace-only crate to prevent name collisions with other existing
+crates. It doesn't do anything _per se_, but contains features that actually
+have some functionality, resulting in an `OWNER::CRATE` structure.**
+
+## Current features ("modules")
+
+## shotgun
 _A dead simple one-shot single producer, multiple consumer (SPMC) channel_
 
-## About
+### About
 Shotgun is a simple one-shot single producer, multiple consumer (SPMC) channel.
 It internally uses `std::sync::Mutex` and `std::sync::Arc` and does not contain
 any unsafe code.
 
-## When to use
+### When to use
 
 Likely when you need to pass a signal to multiple threads or functions to stop
 in order to shut down the application.
 
-## How to use
+### How to use
 
-### Synchronous
+#### Synchronous
 ```rust
 fn main() {
-    use shotgun::channel;
+    use laika::shotgun::channel;
     use std::thread;
     use std::time;
 
@@ -49,7 +57,7 @@ fn main() {
 }
 ```
 
-### Asynchronous
+#### Asynchronous
 ```rust
 #[tokio]
 async fn main() {
@@ -90,5 +98,5 @@ async fn main() {
 }
 ```
 
-## License
+# License
 [MIT](LICENSE)
