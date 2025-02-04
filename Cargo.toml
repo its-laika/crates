@@ -1,6 +1,6 @@
 [package]
 name = "shotgun"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Laika Schmidt <36010519+its-laika@users.noreply.github.com>"]
 description = "A very simple oneshot single producer, multiple consumer (SPMC) channel"
@@ -13,4 +13,5 @@ categories = ["concurrency"]
 [lib]
 source = "src/lib.rs"
 
-[dependencies]
+[dev-dependencies]
+tokio = { version = "1.43", features = ["rt", "macros"] }

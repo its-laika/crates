@@ -6,7 +6,10 @@
 
 use std::{
     clone::Clone,
+    future::Future,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll, Waker},
 };
 
 /// Oneshot receiver of a [`channel`]
@@ -17,7 +20,7 @@ use std::{
 /// # Examples
 ///
 /// ```rust
-/// let (mut tx, rx) = shotgun::channel::<u8>();
+/// let (mut tx, rx) = shotgun::channel();
 ///
 /// // Initialy, oneshot receiver has no value
 /// assert_eq!(rx.try_recv(), None);
@@ -45,7 +48,7 @@ where
 /// ## Send a value
 ///
 /// ```rust
-/// let (mut tx, rx) = shotgun::channel::<u8>();
+/// let (mut tx, rx) = shotgun::channel();
 ///
 /// // Send a value
 /// tx.send(12);
@@ -54,7 +57,7 @@ where
 /// ## Sender is dropped after sending
 ///
 /// ```compile_fail
-/// let (mut tx, rx) = shotgun::channel::<u8>();
+/// let (mut tx, rx) = shotgun::channel();
 ///
 /// // Send a value
 /// tx.send(12);
@@ -77,7 +80,7 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// let (mut tx, rx) = shotgun::channel::<u8>();
+    /// let (mut tx, rx) = shotgun::channel();
     ///
     /// // Initialy, oneshot receiver has no value
     /// assert_eq!(rx.try_recv(), None);
@@ -100,6 +103,31 @@ where
             .expect("Mutex is poisoned")
             .try_recv()
     }
+
+    /// Receive a value from the channel.
+    /// Waits until value has been sent and then returns it.
+    /// This function is **blocking**.
+    ///
+    /// # Examples
+    /// ```compile_fail
+    /// let (mut tx, rx) = shotgun::channel();
+    ///
+    /// let fun1 = async move {
+    ///     rx.recv().await;
+    ///     return 1;
+    /// };
+    ///
+    /// std::thread::sleep(std::time::Duration::from_secs(1));
+    ///
+    /// // Send a value
+    /// tx.send(());
+    ///
+    /// // Now, oneshot receiver has the value
+    /// assert_eq!(fun1.await, 1);
+    /// ```
+    pub async fn recv(self) -> T {
+        self.await
+    }
 }
 
 impl<T> Sender<T>
@@ -113,7 +141,7 @@ where
     /// ## Send a value
     ///
     /// ```rust
-    /// let (mut tx, rx) = shotgun::channel::<u8>();
+    /// let (mut tx, rx) = shotgun::channel();
     ///
     /// // Send a value
     /// tx.send(12);
@@ -131,6 +159,8 @@ where
 {
     /// Value that was sent by [`_Sender`]
     value: Option<T>,
+    /// Wakers that will be woken up when value is sent by [`_Sender`]
+    wakers: Vec<Waker>,
 }
 
 /// Inner sender of a [`channel`] that sends a value to the related [`_Receiver`]
@@ -156,6 +186,31 @@ where
     /// Sets the value to be received by all [`Receiver`]s from [`_Sender`].
     fn set(&mut self, value: T) {
         self.value = Some(value);
+
+        for waker in self.wakers.clone() {
+            waker.wake();
+        }
+    }
+}
+
+/// Implement [`Future`] for [`Receiver`] to be able to use it in async functions.
+impl<T> Future for Receiver<T>
+where
+    T: Clone,
+{
+    type Output = T;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut inner = self.inner.lock().expect("Mutex is poisoned");
+
+        if let Some(value) = &inner.value {
+            Poll::Ready(value.clone())
+        } else {
+            if inner.wakers.iter().all(|w| !w.will_wake(cx.waker())) {
+                inner.wakers.push(cx.waker().clone());
+            }
+            Poll::Pending
+        }
     }
 }
 
@@ -187,7 +242,10 @@ where
         inner: _Sender { receiver: None },
     };
 
-    let receiver_ref = Arc::new(Mutex::new(_Receiver { value: None }));
+    let receiver_ref = Arc::new(Mutex::new(_Receiver {
+        value: None,
+        wakers: Vec::new(),
+    }));
 
     let receiver = Receiver {
         inner: receiver_ref.clone(),
@@ -200,6 +258,8 @@ where
 
 #[cfg(test)]
 mod test {
+    use tokio::join;
+
     use super::*;
 
     #[test]
@@ -257,6 +317,7 @@ mod test {
     #[test]
     fn test_works_in_threads() {
         use std::thread;
+        use std::time;
 
         let (tx, rx) = channel();
 
@@ -267,7 +328,7 @@ mod test {
                 return 1;
             }
 
-            thread::sleep(std::time::Duration::from_secs(1));
+            thread::sleep(time::Duration::from_secs(1));
         });
 
         let rx2 = rx.clone();
@@ -276,14 +337,50 @@ mod test {
                 return 2;
             }
 
-            thread::sleep(std::time::Duration::from_secs(1));
+            thread::sleep(time::Duration::from_secs(1));
         });
 
-        thread::sleep(std::time::Duration::from_secs(2));
+        thread::sleep(time::Duration::from_secs(2));
 
         tx.send(());
 
         assert!(thread1.join().is_ok_and(|v| v == 1));
         assert!(thread2.join().is_ok_and(|v| v == 2));
+    }
+
+    #[tokio::test]
+    async fn test_recv() {
+        use std::thread;
+        use std::time;
+
+        let (tx, rx) = channel();
+
+        let rx1 = rx.clone();
+        let fun1 = async move {
+            rx1.await;
+            1
+        };
+
+        let rx2 = rx.clone();
+        let fun2 = async move {
+            rx2.recv().await; // Explicit call to recv
+            2
+        };
+
+        thread::sleep(time::Duration::from_secs(2));
+
+        tx.send(());
+
+        let rx3 = rx.clone();
+        let fun3 = async move {
+            rx3.await;
+            3
+        };
+
+        let result = join!(fun1, fun2);
+
+        assert_eq!(result.0, 1);
+        assert_eq!(result.1, 2);
+        assert_eq!(fun3.await, 3);
     }
 }
