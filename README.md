@@ -1,13 +1,15 @@
 # shotgun
-_A dead simple oneshot single producer, multiple consumer (SPMC) channel_
+_A dead simple one-shot single producer, multiple consumer (SPMC) channel_
 
 ## About
 Shotgun is a simple one-shot single producer, multiple consumer (SPMC) channel.
-It internally uses `std::sync::Mutex` and `std::sync::Arc` and does not contain any unsafe code.
+It internally uses `std::sync::Mutex` and `std::sync::Arc` and does not contain
+any unsafe code.
 
 ## When to use
 
-Likely when you need to pass a signal to multiple threads or functions to stop in order to shut down the application.
+Likely when you need to pass a signal to multiple threads or functions to stop
+in order to shut down the application.
 
 ## How to use
 
@@ -65,7 +67,8 @@ async fn main() {
 
     let rx2 = rx.clone();
     let fun2 = async move {
-        rx2.recv().await; // Explicit call to recv(), does the same as calling `.await` directly.
+        // Explicit call to recv(), does the same as calling`.await` directly.
+        rx2.recv().await;
         2
     };
 

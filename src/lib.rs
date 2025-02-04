@@ -1,8 +1,9 @@
 #![forbid(unsafe_code)]
 //! # Shotgun
 //!
-//! Shotgun is a simple oneshot single producer, multiple consumer (SPMC) channel.
-//! Internally using [`std::sync::Mutex`] and [`std::sync::Arc`], not containing any unsafe code.
+//! Shotgun is a simple oneshot single producer, multiple consumer (SPMC)
+//! channel. Internally using [`std::sync::Mutex`] and [`std::sync::Arc`], not
+//! containing any unsafe code.
 
 use std::{
     clone::Clone,
@@ -14,10 +15,13 @@ use std::{
 
 /// Oneshot receiver of a [`channel`]
 ///
-/// Use [`Receiver::try_recv`] to try to receive a value from the channel, if it has been sent.
-/// As this is a oneshot receiver, only one value can be received.
+/// Use [`Receiver::try_recv`] or [`Receiver::recv`] to (try to) receive a value
+/// from the channel, if it has been sent. As this is a oneshot receiver, only
+/// one value can be received.
 ///
 /// # Examples
+///
+/// ## Synchronous
 ///
 /// ```rust
 /// let (mut tx, rx) = shotgun::channel();
@@ -31,11 +35,28 @@ use std::{
 /// // Now, oneshot receiver has the value
 /// assert_eq!(rx.try_recv(), Some(12));
 /// ```
-#[derive(Clone)]
+///
+/// ## Asynchronous
+///
+/// ```no_run
+/// let (mut tx, rx) = shotgun::channel();
+///
+/// // ... in any async runtime
+///
+/// let fun1 = async move {
+///     rx.recv().await;
+///     return 1;
+/// };
+///
+/// // Send a value
+/// tx.send(12);
+/// ```
+#[derive(Clone, Debug)]
 pub struct Receiver<T>
 where
     T: Clone,
 {
+    /// Inner receiver that holds the sent value and possible wakers
     inner: Arc<Mutex<_Receiver<T>>>,
 }
 
@@ -63,6 +84,7 @@ where
 /// tx.send(12);
 /// tx.send(13); // This won't compile
 /// ```
+#[derive(Debug)]
 pub struct Sender<T>
 where
     T: Clone,
@@ -76,7 +98,13 @@ where
 {
     /// Try to receive a value from the channel, if it has been sent.
     /// As this is a oneshot receiver, only one value can be received.
-    /// This function is **non-blocking** and just returns [`None`] if no value has been sent.
+    /// This function is **non-blocking** and just returns [`None`] if no value
+    /// has been sent.
+    ///
+    /// # Panics
+    ///
+    /// Panics if mutex is poisened due to another thread panicking while using
+    /// inner receiver too.
     ///
     /// # Examples
     /// ```rust
@@ -106,7 +134,10 @@ where
 
     /// Receive a value from the channel.
     /// Waits until value has been sent and then returns it.
-    /// This function is **blocking**.
+    /// This function is blocking asynchronously.
+    ///
+    /// # Note
+    /// You can directly [`Future`]'s `.await` on the receiver too.
     ///
     /// # Examples
     /// ```compile_fail
@@ -151,8 +182,8 @@ where
     }
 }
 
-/// Inner receiver of a [`channel`] that just holds the sent value
-#[derive(Clone)]
+/// Inner receiver of a [`channel`]
+#[derive(Clone, Debug)]
 struct _Receiver<T>
 where
     T: Clone,
@@ -163,8 +194,8 @@ where
     wakers: Vec<Waker>,
 }
 
-/// Inner sender of a [`channel`] that sends a value to the related [`_Receiver`]
-#[derive(Clone)]
+/// Inner sender of a [`channel`]
+#[derive(Clone, Debug)]
 struct _Sender<T>
 where
     T: Clone,
@@ -178,7 +209,8 @@ impl<T> _Receiver<T>
 where
     T: Clone,
 {
-    /// Clones the value (if it has been given by [`_Sender`]) and returns clone of it.
+    /// Clones the value (if it has been given by [`_Sender`]) and returns clone
+    /// of it.
     fn try_recv(&self) -> Option<T> {
         self.value.clone()
     }
@@ -193,7 +225,8 @@ where
     }
 }
 
-/// Implement [`Future`] for [`Receiver`] to be able to use it in async functions.
+/// Implement [`Future`] for [`Receiver`] to be able to use it in async
+/// functions.
 impl<T> Future for Receiver<T>
 where
     T: Clone,
@@ -219,6 +252,11 @@ where
     T: Clone,
 {
     /// Send a value to all [`Receiver`]s.
+    ///
+    /// # Panics
+    ///
+    /// Panics if mutex is poisened due to another thread panicking while using
+    /// referenced receiver too.
     fn send(self, value: T) {
         if let Some(recv) = self.receiver.as_ref() {
             recv.lock().expect("Mutex is poisoned").set(value);
@@ -226,7 +264,8 @@ where
     }
 }
 
-/// Creates a oneshot channel that can be used to send a value to all receivers.
+/// Creates a one-shot, single producer multiple consumer channel that can be
+/// used to send one value to multiple receivers.
 ///
 /// # Examples
 ///
