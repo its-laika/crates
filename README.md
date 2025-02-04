@@ -9,8 +9,9 @@ Currently limited to non-blocking functions.
 ## How to use
 
 ```rust
+use shotgun::channel;
 use std::thread;
-use oneshot::channel;
+use std::time;
 
 let (tx, rx) = channel();
 
@@ -21,7 +22,7 @@ let thread1 = thread::spawn(move || loop {
         return 1;
     }
 
-    thread::sleep(std::time::Duration::from_secs(1));
+    thread::sleep(time::Duration::from_secs(1));
 });
 
 let rx2 = rx.clone();
@@ -30,10 +31,10 @@ let thread2 = thread::spawn(move || loop {
         return 2;
     }
 
-    thread::sleep(std::time::Duration::from_secs(1));
+    thread::sleep(time::Duration::from_secs(1));
 });
 
-thread::sleep(std::time::Duration::from_secs(2));
+thread::sleep(time::Duration::from_secs(2));
 
 tx.send(()); // `tx` is dropped here.
 

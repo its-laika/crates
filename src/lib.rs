@@ -204,7 +204,7 @@ mod test {
 
     #[test]
     fn test_basic() {
-        let (tx, rx) = channel::<()>();
+        let (tx, rx) = channel();
 
         assert_eq!(rx.try_recv(), None);
         assert_eq!(rx.try_recv(), None);
@@ -217,7 +217,7 @@ mod test {
 
     #[test]
     fn test_work_without_receiver() {
-        let (tx, rx) = channel::<()>();
+        let (tx, rx) = channel();
         assert_eq!(rx.try_recv(), None);
 
         drop(rx);
