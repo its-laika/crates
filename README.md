@@ -2,8 +2,8 @@
 _A dead simple oneshot single producer, multiple consumer (SPMC) channel_
 
 ## About
-Shotgun is a simple oneshot single producer, multiple consumer (SPMC) channel.
-Internally using `std::sync::Mutex` and `std::sync::Arc`, not containing any unsafe code.
+Shotgun is a simple one-shot single producer, multiple consumer (SPMC) channel.
+It internally uses `std::sync::Mutex` and `std::sync::Arc` and does not contain any unsafe code.
 
 ## When to use
 
@@ -11,7 +11,7 @@ Likely when you need to pass a signal to multiple threads or functions to stop i
 
 ## How to use
 
-### Syncronous
+### Synchronous
 ```rust
 fn main() {
     use shotgun::channel;

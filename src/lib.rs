@@ -258,9 +258,8 @@ where
 
 #[cfg(test)]
 mod test {
-    use tokio::join;
-
     use super::*;
+    use tokio::task::JoinSet;
 
     #[test]
     fn test_basic() {
@@ -355,17 +354,18 @@ mod test {
 
         let (tx, rx) = channel();
 
+        let mut join_set = JoinSet::new();
         let rx1 = rx.clone();
-        let fun1 = async move {
+        join_set.spawn(async move {
             rx1.await;
             1
-        };
+        });
 
         let rx2 = rx.clone();
-        let fun2 = async move {
+        join_set.spawn(async move {
             rx2.recv().await; // Explicit call to recv
             2
-        };
+        });
 
         thread::sleep(time::Duration::from_secs(2));
 
@@ -377,10 +377,10 @@ mod test {
             3
         };
 
-        let result = join!(fun1, fun2);
+        let result = join_set.join_all().await;
 
-        assert_eq!(result.0, 1);
-        assert_eq!(result.1, 2);
+        assert_eq!(result[0], 1);
+        assert_eq!(result[1], 2);
         assert_eq!(fun3.await, 3);
     }
 }
