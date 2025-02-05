@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-//! # Shotgun
+//! # A dead simple one-shot single producer, multiple consumer (SPMC) channel
 //!
 //! Shotgun is a simple oneshot single producer, multiple consumer (SPMC)
 //! channel. Internally using [`std::sync::Mutex`] and [`std::sync::Arc`], not
@@ -140,6 +140,7 @@ where
     /// You can directly [`Future`]'s `.await` on the receiver too.
     ///
     /// # Examples
+    /// (*Note that this won't compile because no async runtime exists here.*)
     /// ```compile_fail
     /// let (mut tx, rx) = laika::shotgun::channel();
     ///

@@ -8,8 +8,8 @@ branch.
 | Version       | Supported          |
 | ------------- | ------------------ |
 | _main_        | :white_check_mark: |
-| 0.1.3         | :white_check_mark: |
-| 0.1.0         | :x:                |
+| 0.1.4         | :white_check_mark: |
+| <= 0.1.3      | :x:                |
 
 ## Reporting a Vulnerability
 

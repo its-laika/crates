@@ -1,10 +1,10 @@
 # Laika's namespace crate 
 
-**This is a namespace-only crate to prevent name collisions with other existing
-crates. It doesn't do anything _per se_, but contains features that actually
-have some functionality, resulting in an `OWNER::CRATE` structure.**
+**This module contains multiple submodules (included via feature flags) with
+different functionalities. They're all grouped under the `laika` namespace,
+providing some kind of scoped crates (avoiding naming conflicts).**
 
-## Current features ("modules")
+## Submodules / Features
 
 ## shotgun
 _A dead simple one-shot single producer, multiple consumer (SPMC) channel_
